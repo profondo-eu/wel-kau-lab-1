@@ -42,28 +42,9 @@
 Masz obwód z kondensatorem lub cewką. Podajesz sygnał (np. skok napięcia) i chcesz wiedzieć,
 **jak napięcia i prądy zmieniają się w czasie**.
 
-```
-      PRZED (t < 0)                    PO (t = 0: włączamy źródło)
+![Obwód RC — analiza czasowa](img/lab2_01_obwod_rc.svg)
 
-         ┌───┐                              V₁ = 5V
-         │ R │                             (+)  (-)
-         │   │                              │    │
-    ─────┤   ├─────                    ┌────┘    └──═══
-         │   │                         │
-         └───┘                      węzeł 1
-           │                           │
-          ═══                        ┌───┐
-                                     │ R │ 1kΩ
-      Nic się nie dzieje             └─┬─┘
-                                       │
-                                    węzeł 2
-                                       │
-                                     ─┤├─  C = 1nF
-                                       │
-                                      ═══
-
-                    Pytanie: jak V(2) zmienia się w czasie?
-```
+**Pytanie:** jak V(2) zmienia się w czasie po włączeniu źródła?
 
 Odpowiedź analityczna: V₂(t) = 5·(1 - e^(-t/RC)) — ale SPICE **nie zna** tego wzoru!
 SPICE rozwiązuje to **numerycznie**, krok po kroku.
@@ -101,22 +82,14 @@ których wartości zależą od metody numerycznej i od poprzednich kroków czaso
 
 Każda metoda numeryczna daje inny model, ale wszystkie mają tę samą strukturę:
 
+| Kondensator | Model stowarzyszony |
+|:---:|:---:|
+| ![Kondensator](img/lab2_02a_kondensator.svg) | ![Model stowarzyszony](img/lab2_02b_model_stowarzyszony.svg) |
+
 ```
-        Kondensator:                 Model stowarzyszony:
-
-          węzeł a                       węzeł a
-             │                             │
-           ─┤├─  C                      ┌──┴──┐
-             │                          │     │
-          węzeł b                      G_eq  I_eq
-                                        │  ↑  │
-                                        │  │  │
-                                        └──┬──┘
-                                        węzeł b
-
-    G_eq = konduktancja zastępcza (zależy od C, h i metody)
-    I_eq = źródło zastępcze (zależy od wartości z POPRZEDNICH kroków)
-    h = krok czasowy (Δt)
+G_eq = konduktancja zastępcza (zależy od C, h i metody)
+I_eq = źródło zastępcze (zależy od wartości z POPRZEDNICH kroków)
+h = krok czasowy (Δt)
 ```
 
 **Szablon w macierzy** (identyczny jak rezystor + źródło prądowe!):
@@ -188,19 +161,9 @@ I_eq = -(C/h) · v(t_n)
 
 Dla zbyt dużego kroku h wynik **oscyluje i rośnie** zamiast zbiegać:
 
-```
-     v(t)
-      │    ×
-      │   × ×         × ← oscylacje rosną!
-      │  ×   ×       ×
-      │ ×     ×     ×
-      │×       ×   ×         (× = wynik Forward Euler)
-      ●─────────×─×──────── (─ = prawdziwe rozwiązanie)
-      │
-      └──────────────────── t
+![Forward Euler — niestabilność](img/lab2_fe_niestabilnosc.svg)
 
-      NIESTABILNE! Dlatego SPICE NIE UŻYWA tej metody.
-```
+**Dlatego SPICE NIE UŻYWA tej metody.**
 
 ---
 
@@ -344,20 +307,7 @@ Najlepszy kompromis: wysoka dokładność (rząd 2) + dobra wydajność + stabil
 Przy skokowej zmianie sygnału (np. przełączenie) metoda trapezów może generować
 fałszywe oscylacje, których nie ma w prawdziwym sygnale:
 
-```
-     v(t)
-      │
-   5V ┤─────────────────────── prawdziwe rozwiązanie (płaskie)
-      │    ×     ×     ×
-   4V ┤
-      │
-   3V ┤
-      │  ×     ×     ×        × = wynik metody trapezów
-   2V ┤                          (fałszywe oscylacje!)
-      │
-      └──────────────────── t
-         skok napięcia
-```
+![Oscylacje metody trapezów vs Backward Euler](img/lab2_trap_oscylacje.svg)
 
 W takich przypadkach lepiej sprawdza się metoda **Geara**.
 
@@ -435,7 +385,9 @@ Przykład: Tranzystor przełączający (nanosekundy)
 └────────────────────┴───────┴──────────────┴───────────┴──────────────┘
 ```
 
-### Schemat decyzyjny
+### Schemat decyzyjny i porównanie metod na wykresie
+
+![Porównanie metod całkowania](img/lab2_porownanie_metod.svg)
 
 ```
                     Jaki obwód?
@@ -481,24 +433,7 @@ Przykład: Tranzystor przełączający (nanosekundy)
 
 ### Obwód
 
-```
-      V₁ = 5V (skok w t=0)
-     (+)   (-)
-      │     │
- ┌────┘    ═══
- │
-węzeł 1
- │
-┌───┐
-│ R │ = 1 kΩ
-└─┬─┘
- │
-węzeł 2
- │
-─┤├─  C = 1 μF
- │
-═══ (masa)
-```
+![Obwód RC do przykładu](img/lab2_01_obwod_rc.svg)
 
 Rozwiązanie analityczne: V₂(t) = 5·(1 - e^(-t/τ)), gdzie τ = RC = 1ms
 
@@ -633,21 +568,7 @@ V₂(t_n) = 0.6 · V₂(t_(n-1)) + 2.0
 
 ### Wizualizacja
 
-```
-  V₂ [V]
-   5 ┤─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ asymptota (5V)
-     │                    ○─────○─────○─────
-   4 ┤               ○╱
-     │            ○╱          ○ = metoda trapezów
-   3 ┤        ○╱              ─ = rozwiązanie dokładne
-     │      ╱
-   2 ┤  ○╱
-     │ ╱
-   1 ┤╱
-     │
-   0 ●───┬───┬───┬───┬───┬───┬───┬───┬───── t [ms]
-     0  0.5  1  1.5  2  2.5  3  3.5  4
-```
+![Obwód RC — metoda trapezów vs dokładne](img/lab2_rc_trapezy.svg)
 
 Metoda trapezów (rząd 2) daje **bardzo dobre** przybliżenie nawet przy grubym kroku h = 0.5ms.
 
@@ -657,26 +578,7 @@ Metoda trapezów (rząd 2) daje **bardzo dobre** przybliżenie nawet przy grubym
 
 SPICE **nie używa** stałego kroku czasowego! Automatycznie dostosowuje h do dynamiki obwodu:
 
-```
-  V(t)
-   │
-   │                     ╱╲   ← szybkie zmiany
-   │  ─ ─ ─ ─ ─ ─ ─ ─ ╱  ╲     = MAŁY krok
-   │                  ╱    │╲
-   │                 ╱     │ ╲
-   │                ╱      │  ╲
-   │               ╱       │   ╲
-   │──────────────╱        │    ╲────────────
-   │  ↑                    │              ↑
-   │  wolne zmiany         │          wolne zmiany
-   │  = DUŻY krok          │          = DUŻY krok
-   └───┬──┬──┬──┬──┬──┬┬┬┬┬┬┬┬──┬──┬──┬──── t
-       ○  ○  ○  ○  ○  ○○○○○○○○  ○  ○  ○
-       ◄── duże ──►  ◄gęste►  ◄── duże ──►
-           kroki       kroki       kroki
-
-   ○ = punkty obliczeniowe (ich gęstość się zmienia!)
-```
+![Algorytm zmiennokrokowy](img/lab2_zmiennokrokowy.svg)
 
 ### Jak SPICE zmienia krok?
 
@@ -787,39 +689,11 @@ wielomianowo do punktów żądanych przez użytkownika (co TStep). Wyświetlone 
 
 ### Przykład wizualny
 
-```
-    Obwód RC bez źródła (R=1kΩ, C=1nF):
+Obwód RC bez źródła:
 
-         węzeł 1
-            │
-          ┌─┤
-          │ │
-         R  C
-          │ │
-          └─┤
-            │
-           ═══
+![Obwód RC — warunki początkowe](img/lab2_03_rc_warunki_poczatkowe.svg)
 
-    Z .NODESET V(1)=5V:              Z .IC V(1)=5V:
-
-    V(1)                              V(1)
-    5V ┤                              5V ●
-       │                                 │╲
-    4V ┤                              4V ┤ ╲
-       │                                 │  ╲
-    3V ┤                              3V ┤   ╲
-       │                                 │    ╲
-    2V ┤                              2V ┤     ╲
-       │                                 │      ╲
-    1V ┤                              1V ┤        ╲───
-       │                                 │
-    0V ●────────────────              0V ┤
-       └──┬──┬──┬──┬──              └──┬──┬──┬──┬──
-         0  1μ 2μ 3μ                  0  1μ 2μ 3μ
-
-    V=0 (bo DC bez źródła            V=5V → rozładowanie
-         daje 0V na C)               eksponencjalne
-```
+![Porównanie .NODESET vs .IC](img/lab2_nodeset_vs_ic.svg)
 
 ---
 
@@ -986,19 +860,7 @@ f_s = 1 / T_s   ← częstotliwość próbkowania [Hz] lub [Sa/s]
 
 **Intuicja:** Żeby zobaczyć sinusoidę, potrzebujesz minimum 2 próbki na okres:
 
-```
-    Wystarczająco (f_s = 4·f):       Za mało (f_s = 1.2·f):
-
-    │  ●                              │         ●
-    │ ╱│╲                             │        ╱ ╲
-    │╱ │ ╲    ●                       │●      ╱   ╲         ●
-    ┼──│──╲──╱│── t                   ┼ ╲    ╱     ╲      ╱
-    │  │   ╲╱ │                       │  ╲  ╱       ╲   ╱
-    │  │   ●  │                       │   ╲╱    ●    ╲╱
-    │  │      │                       │              ↑
-    4 próbki na okres                 Te próbki „widzą"
-    → sygnał odtwarzalny             INNĄ częstotliwość! (aliasing)
-```
+![Próbkowanie — dobre vs aliasing](img/lab2_probkowanie_nyquist.svg)
 
 ---
 
@@ -1008,31 +870,9 @@ f_s = 1 / T_s   ← częstotliwość próbkowania [Hz] lub [Sa/s]
 
 Gdy f_max > f_s/2, widma sąsiednich okresów **nakładają się** i **nie da się ich rozdzielić**:
 
-```
-    Poprawne próbkowanie (f_max < f_s/2):
+![Aliasing w dziedzinie częstotliwości](img/lab2_aliasing.svg)
 
-    |X(f)|
-     │   ╱╲          ╱╲          ╱╲
-     │  ╱  ╲        ╱  ╲        ╱  ╲
-     │ ╱    ╲      ╱    ╲      ╱    ╲
-     └╱──────╲────╱──────╲────╱──────╲── f
-    -f_s   -f_s/2   0   f_s/2    f_s
-
-     Widma NIE nachodzą → OK
-
-
-    Złe próbkowanie (f_max > f_s/2):
-
-    |X(f)|
-     │   ╱╲     ╱╲╱╲     ╱╲
-     │  ╱  ╲   ╱ ╲╱ ╲   ╱  ╲
-     │ ╱    ╲ ╱  ██  ╲ ╱    ╲
-     └╱──────╲╱──██──╲╱──────── f
-    -f_s   -f_s/2  0  f_s/2  f_s
-
-     Widma NACHODZĄ → ██ = aliasing!
-     Zafałszowane — NIEODWRACALNE!
-```
+**Aliasing jest NIEODWRACALNY** — raz zafałszowanych danych nie da się odzyskać!
 
 ### Przykład z życia — dźwięk
 
@@ -1131,22 +971,7 @@ x(n): 5.00  3.93  1.19  0.07  0.81  3.00  5.19  3.93  1.07  0.81
       (x = 2 + 3·cos(2π·100·n/1000) = 2 + 3·cos(2πn/10))
 ```
 
-```
-    x(n)
-    5 ┤●              ●
-      │ ╲            ╱ ╲        ●
-    4 ┤  ●          ╱   ●
-      │   ╲        ╱
-    3 ┤    ╲   ●  ╱               ●
-      │     ╲    ╱
-    2 ┤      ╲  ╱
-      │       ╲╱
-    1 ┤    ●       ●
-      │
-    0 ┤  ●
-      └──┬──┬──┬──┬──┬──┬──┬──┬──┬── n
-         0  1  2  3  4  5  6  7  8  9
-```
+![Przykład DFT — sygnał i widmo](img/lab2_dft_przyklad.svg)
 
 ### Wynik DFT
 
@@ -1158,20 +983,6 @@ x(n): 5.00  3.93  1.19  0.07  0.81  3.00  5.19  3.93  1.07  0.81
 | 3 | 300 Hz | 0 | 0 | Brak |
 | 4 | 400 Hz | 0 | 0 | Brak |
 | 5-9 | | (lustrzane) | (pomijamy) | Symetria |
-
-```
-    |X(m)| · 2/N
-    3V ┤     █
-       │     █
-    2V ┤ █   █
-       │ █   █
-    1V ┤ █   █
-       │ █   █
-    0V ┤─█───█───────────────── f
-       0Hz 100Hz 200Hz 300Hz 400Hz 500Hz
-
-       DC   f₁   (nic więcej — sygnał miał tylko te 2 składowe)
-```
 
 Dokładnie odzyskaliśmy: A_DC = 2V, Amp przy 100Hz = 3V. DFT działa!
 
@@ -1189,19 +1000,7 @@ W przykładzie wyżej f_syg = 100 Hz = 1·Δf — **dokładnie** na prążku DFT
 
 Wtedy energia sygnału **rozlewa się** na wiele prążków:
 
-```
-    Brak przecieku (f = 100 Hz = 1·Δf):     Przeciek (f = 137 Hz ≠ m·Δf):
-
-    |X|                                       |X|
-     │     █                                   │   █ █
-     │     █                                   │ █ █ █ █
-     │     █                                   │ █ █ █ █ █
-     └─────┴────── f                           └─┴─┴─┴─┴─┴── f
-          100 Hz                                   137 Hz
-                                                    ↑
-     Cała energia w JEDNYM prążku           Energia rozproszona
-                                            na WIELE prążków!
-```
+![Przeciek widmowy — brak vs jest](img/lab2_przeciek_widmowy.svg)
 
 ### Dlaczego tak się dzieje?
 
@@ -1238,30 +1037,7 @@ Czyli w oknie próbkowania musi się zmieścić **całkowita** liczba okresów s
 
 Zamiast „twardego" okna prostokątnego, mnożymy sygnał przez **okno o łagodnych zboczach**:
 
-```
-    Okno prostokątne:                  Okno Hanninga (łagodne):
-
-    │████████████████│                 │      ╱████╲      │
-    │████████████████│                 │    ╱████████╲    │
-    │████████████████│                 │  ╱████████████╲  │
-    │████████████████│                 │╱████████████████╲│
-    └────────────────┘                 └──────────────────┘
-    Ostre krawędzie                    Łagodne zanikanie do zera
-    → duży przeciek                    → mały przeciek
-```
-
-### Jak to działa?
-
-```
-    Sygnał × okno prostokątne:         Sygnał × okno Hanninga:
-
-    │╱╲  ╱╲  ╱╲  ╱╲ │                 │    ╱╲  ╱╲  ╱╲    │
-    │   ╲╱  ╲╱  ╲╱ ╲ │                 │  ╱    ╲╱  ╲╱  ╲  │
-    │              ↑  │                 │╱              ╲│
-    └──────────── SKOK!                └──────────────────┘
-                                       Krawędzie ≈ 0 → brak skoku
-    → DUŻY przeciek                    → mały przeciek
-```
+![Okienkowanie — funkcje okna i efekt na widmo](img/lab2_okienkowanie.svg)
 
 ### Kompromis
 
