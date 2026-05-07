@@ -10,6 +10,7 @@
 1. [O co w tym chodzi? — intuicja](#1-o-co-w-tym-chodzi--intuicja)
 2. [Równanie macierzowe obwodu](#2-równanie-macierzowe-obwodu)
 3. [Szablony elementów — krok po kroku](#3-szablony-elementów--krok-po-kroku)
+   - 3.4 [Przykład: szablony w akcji (Iźr + 4 rezystory)](#34-przykład-szablony-w-akcji--obwód-z-4-rezystorami-i-źródłem-prądowym)
 4. [Zmodyfikowana metoda węzłowa (MNA)](#4-zmodyfikowana-metoda-węzłowa-mna)
 5. [Przykład 1: Prosty dzielnik napięcia](#5-przykład-1-prosty-dzielnik-napięcia--pełne-rozwiązanie)
 6. [Przykład 2: Obwód z dwoma źródłami](#6-przykład-2-obwód-z-dwoma-źródłami)
@@ -60,17 +61,7 @@ Cały obwód opisujemy jednym równaniem:
 
 ### Węzeł odniesienia (masa)
 
-```
-         ┌─── węzeł 1
-         │
-    ┌────┤
-    │    │
-    R1   R2
-    │    │
-    └────┘
-         │
-        ═══  ← węzeł 0 (masa, odniesienie)
-```
+![Węzeł odniesienia (masa) — R1 i R2 do masy](img/lab1_wezel_odniesienia.png)
 
 Jeden węzeł nazywamy **masą** (węzeł 0). Napięcia pozostałych mierzymy **względem niego**.
 Masa nie wchodzi do równania macierzowego — dlatego mamy n węzłów, nie n+1.
@@ -137,6 +128,143 @@ wiersz b                              [ +Is ]  ← prąd WPŁYWA do b
 **Problem:** Konduktancja źródła napięciowego = ∞ (opór = 0). Nie da się wpisać ∞ do macierzy!
 
 **Rozwiązanie:** Zmodyfikowana metoda węzłowa (MNA) — patrz następny rozdział.
+
+---
+
+### 3.4 Przykład: szablony w akcji — obwód z 4 rezystorami i źródłem prądowym
+
+Ten przykład pokazuje, jak **wszystkie szablony z sekcji 3.1–3.2 współdziałają** przy budowie jednego równania macierzowego.
+
+### Obwód
+
+![Obwód: Iźr + R1-R4, 3 węzły](img/lab1_00_przyklad_szablony.png)
+
+### Krok 1: Inwentaryzacja
+
+| Element | Typ | Węzły | Wartość | Konduktancja |
+|---------|-----|-------|---------|-------------|
+| Iźr | Źródło prądowe | 0 → 1 (do węzła 1) | 6 mA | — |
+| R1 | Rezystor | 1 — 2 | 2 kΩ | G1 = 0.5 mS |
+| R2 | Rezystor | 2 — 0 (masa) | 2 kΩ | G2 = 0.5 mS |
+| R3 | Rezystor | 2 — 3 | 2 kΩ | G3 = 0.5 mS |
+| R4 | Rezystor | 3 — 0 (masa) | 2 kΩ | G4 = 0.5 mS |
+
+- Węzły: **3** (węzeł 1, 2, 3)
+- Źródeł napięciowych: **0** → nie potrzebujemy MNA!
+- **Wymiar macierzy: 3 × 3**
+
+### Krok 2: Pusta macierz 3×3
+
+```
+              V1       V2       V3        RHS
+wiersz 1  [   0        0        0   ]   [  0   ]
+wiersz 2  [   0        0        0   ]   [  0   ]
+wiersz 3  [   0        0        0   ]   [  0   ]
+```
+
+### Krok 3: Stemplujemy element po elemencie
+
+**+ R1 (G1=0.5 mS, węzły 1–2)** — szablon 3.1 (rezystor między węzłami):
+
+```
+              V1       V2       V3        RHS
+wiersz 1  [ +0.5m    -0.5m      0   ]   [  0   ]
+wiersz 2  [ -0.5m    +0.5m      0   ]   [  0   ]
+wiersz 3  [   0        0        0   ]   [  0   ]
+```
+
+**+ R2 (G2=0.5 mS, węzeł 2 — masa)** — szablon 3.1 (rezystor do masy → tylko przekątna):
+
+```
+              V1       V2       V3        RHS
+wiersz 1  [ +0.5m    -0.5m      0   ]   [  0   ]
+wiersz 2  [ -0.5m    +1.0m      0   ]   [  0   ]    ← 0.5m + 0.5m = 1.0m
+wiersz 3  [   0        0        0   ]   [  0   ]
+```
+
+**+ R3 (G3=0.5 mS, węzły 2–3)** — szablon 3.1 (rezystor między węzłami):
+
+```
+              V1       V2       V3        RHS
+wiersz 1  [ +0.5m    -0.5m      0   ]   [  0   ]
+wiersz 2  [ -0.5m    +1.5m    -0.5m ]   [  0   ]    ← 1.0m + 0.5m = 1.5m
+wiersz 3  [   0      -0.5m    +0.5m ]   [  0   ]
+```
+
+**+ R4 (G4=0.5 mS, węzeł 3 — masa)** — szablon 3.1 (rezystor do masy):
+
+```
+              V1       V2       V3        RHS
+wiersz 1  [ +0.5m    -0.5m      0   ]   [  0   ]
+wiersz 2  [ -0.5m    +1.5m    -0.5m ]   [  0   ]
+wiersz 3  [   0      -0.5m    +1.0m ]   [  0   ]    ← 0.5m + 0.5m = 1.0m
+```
+
+**+ Iźr (6 mA, wpływa do węzła 1)** — szablon 3.2 (źródło prądowe → tylko wektor I):
+
+```
+              V1       V2       V3        RHS
+wiersz 1  [ +0.5m    -0.5m      0   ]   [ +6m  ]    ← prąd WPŁYWA do węzła 1
+wiersz 2  [ -0.5m    +1.5m    -0.5m ]   [  0   ]
+wiersz 3  [   0      -0.5m    +1.0m ]   [  0   ]
+```
+
+### Krok 4: Gotowe równanie macierzowe G·V = I
+
+```
+┌                          ┐   ┌    ┐     ┌      ┐
+│  0.5m    -0.5m      0    │   │ V1 │     │  6m  │
+│ -0.5m    +1.5m    -0.5m  │ · │ V2 │  =  │  0   │
+│    0     -0.5m    +1.0m  │   │ V3 │     │  0   │
+└                          ┘   └    ┘     └      ┘
+```
+
+**Zwróć uwagę na strukturę macierzy G:**
+- Na **przekątnej** — suma konduktancji wszystkich elementów podłączonych do danego węzła (zawsze +)
+- **Poza przekątną** — minus konduktancja elementu łączącego dwa węzły (zawsze −)
+- Macierz jest **symetryczna** (G[i,j] = G[j,i])
+
+### Krok 5: Rozwiązanie
+
+Z wiersza 3: −0.5m · V2 + 1.0m · V3 = 0
+
+```
+V3 = 0.5 · V2
+```
+
+Z wiersza 2: −0.5m · V1 + 1.5m · V2 − 0.5m · V3 = 0
+
+```
+Podstawiamy V3 = 0.5·V2:
+−0.5m · V1 + 1.5m · V2 − 0.25m · V2 = 0
+−0.5m · V1 + 1.25m · V2 = 0
+V1 = 2.5 · V2
+```
+
+Z wiersza 1: 0.5m · V1 − 0.5m · V2 = 6m
+
+```
+Podstawiamy V1 = 2.5·V2:
+0.5m · 2.5 · V2 − 0.5m · V2 = 6m
+1.25m · V2 − 0.5m · V2 = 6m
+0.75m · V2 = 6m
+
+V2 = 8 V
+V1 = 2.5 · 8 = 20 V
+V3 = 0.5 · 8 = 4 V
+```
+
+### Krok 6: Weryfikacja — KCL w każdym węźle
+
+**Węzeł 1:** Iźr − IR1 = 6mA − G1·(V1−V2) = 6 − 0.5·(20−8) = 6 − 6 = **0** ✓
+
+**Węzeł 2:** IR1 − IR2 − IR3 = 0.5·12 − 0.5·8 − 0.5·(8−4) = 6 − 4 − 2 = **0** ✓
+
+**Węzeł 3:** IR3 − IR4 = 0.5·(8−4) − 0.5·4 = 2 − 2 = **0** ✓
+
+> **Podsumowanie:** Cały obwód z 5 elementami opisaliśmy jednym równaniem macierzowym,
+> korzystając **tylko z dwóch szablonów** (rezystor + źródło prądowe).
+> Nie potrzebowaliśmy MNA, bo nie było źródła napięciowego.
 
 ---
 
