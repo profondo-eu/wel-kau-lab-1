@@ -215,6 +215,24 @@ wiersz 3  [   0      -0.5m    +1.0m ]   [  0   ]
 
 ### Krok 4: Gotowe równanie macierzowe G·V = I
 
+Najpierw zapiszmy z symbolami konduktancji — widać wtedy **wzorzec**:
+
+```
+┌                                   ┐   ┌    ┐     ┌     ┐
+│   G1          -G1            0    │   │ V1 │     │ Iźr │
+│  -G1      G1+G2+G3         -G3   │ · │ V2 │  =  │  0  │
+│    0          -G3          G3+G4  │   │ V3 │     │  0  │
+└                                   ┘   └    ┘     └     ┘
+```
+
+**Zwróć uwagę na strukturę macierzy G:**
+- Na **przekątnej** — suma konduktancji wszystkich elementów podłączonych do danego węzła (zawsze +)
+- **Poza przekątną** — minus konduktancja elementu łączącego dwa węzły (zawsze −)
+- Macierz jest **symetryczna** (G[i,j] = G[j,i])
+- Puste miejsca = 0 (brak bezpośredniego połączenia między węzłami 1 i 3)
+
+Po podstawieniu G1 = G2 = G3 = G4 = 0.5 mS, Iźr = 6 mA:
+
 ```
 ┌                          ┐   ┌    ┐     ┌      ┐
 │  0.5m    -0.5m      0    │   │ V1 │     │  6m  │
@@ -222,11 +240,6 @@ wiersz 3  [   0      -0.5m    +1.0m ]   [  0   ]
 │    0     -0.5m    +1.0m  │   │ V3 │     │  0   │
 └                          ┘   └    ┘     └      ┘
 ```
-
-**Zwróć uwagę na strukturę macierzy G:**
-- Na **przekątnej** — suma konduktancji wszystkich elementów podłączonych do danego węzła (zawsze +)
-- **Poza przekątną** — minus konduktancja elementu łączącego dwa węzły (zawsze −)
-- Macierz jest **symetryczna** (G[i,j] = G[j,i])
 
 ### Krok 5: Rozwiązanie
 
