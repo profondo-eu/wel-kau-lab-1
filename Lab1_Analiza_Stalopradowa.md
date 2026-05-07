@@ -308,37 +308,51 @@ V3 = 0.5 · 8 = 4 V
 
 ## 4. Zmodyfikowana metoda węzłowa (MNA)
 
-### Idea — w prostych słowach
+### Problem — dlaczego rezystor da się wpisać, a źródło napięciowe nie?
 
-Gdy mamy źródło napięciowe, robimy dwie rzeczy:
-1. **Dodajemy nową niewiadomą** — prąd płynący przez to źródło (I_V)
-2. **Dodajemy nowe równanie** — „napięcie między węzłami = Vs"
+Przypomnij sobie szablon rezystora: wpisujesz **konduktancję** G = 1/R do macierzy.
 
-Macierz się powiększa:
+A jaką konduktancję ma źródło napięciowe? Idealne źródło ma **opór = 0**, czyli G = 1/0 = **∞**.
+Nie da się wpisać nieskończoności do macierzy — układ równań się rozpadnie.
+
+Ale źródło napięciowe daje nam coś innego: **wiemy, jakie jest napięcie** między dwoma węzłami.
+Np. jeśli V1 = 10V między węzłem 1 a masą, to znamy od razu: V1 = 10V.
+Problem: w macierzy G·V = I nie ma miejsca, żeby to zapisać — ta macierz opisuje
+tylko **prądy** (KCL). Potrzebujemy dodatkowego równania.
+
+### Idea MNA — dodaj równanie i niewiadomą
+
+Rozwiązanie jest eleganckie. Robimy dwie rzeczy:
+
+**1. Dodajemy niewiadomą** — prąd I_V płynący przez źródło napięciowe.
+Dlaczego? Bo dotąd nie wiedzieliśmy, jaki prąd płynie przez źródło — nie dało się go policzyć z G·V = I.
+
+**2. Dodajemy równanie** — „napięcie między węzłami = Vs".
+To jest ta informacja, którą daje nam źródło napięciowe, a która nie mieści się w KCL.
+
+Macierz rośnie — zamiast n × n mamy (n+m) × (n+m), gdzie m = liczba źródeł napięciowych:
 
 ```
     ┌─────────┬───────┐   ┌─────┐   ┌─────┐
     │         │       │   │     │   │     │
     │    G    │   B   │   │  V  │   │  I  │
-    │  n × n  │ n × m │ · │     │ = │     │
+    │  n × n  │ n × m │ · │     │ = │     │     ← n równań KCL (jak dotąd)
     ├─────────┼───────┤   ├─────┤   ├─────┤
-    │    C    │   D   │   │  J  │   │  E  │
+    │    C    │   D   │   │ I_V │   │  E  │     ← m nowych równań napięciowych
     │  m × n  │ m × m │   │     │   │     │
     └─────────┴───────┘   └─────┘   └─────┘
-
-    n = liczba węzłów
-    m = liczba dodatkowych zmiennych (np. prądów przez źródła napięciowe)
 ```
 
-| Blok | Co zawiera |
-|------|-----------|
-| **G** | Konduktancje (jak wcześniej) |
-| **B, C** | Powiązania między węzłami a nowymi zmiennymi |
-| **D** | Zwykle zera |
-| **V** | Szukane napięcia węzłowe |
-| **J** | Szukane prądy (nowe niewiadome) |
-| **I** | Wymuszenia prądowe |
-| **E** | Wymuszenia napięciowe |
+| Blok | Co zawiera | Skąd się bierze |
+|------|-----------|----------------|
+| **G** | Konduktancje | Rezystory (jak w rozdziale 3) |
+| **B** | +1/−1 | Prąd źródła wpływa/wypływa z węzłów |
+| **C** | +1/−1 | Równanie Vi − Vj = Vs |
+| **D** | Zwykle zera | (chyba że źródło ma opór wewnętrzny) |
+| **V** | Napięcia węzłowe | **Szukamy** |
+| **I_V** | Prądy przez źródła | **Szukamy** (nowe niewiadome!) |
+| **I** | Wymuszenia prądowe | Ze źródeł prądowych |
+| **E** | Wymuszenia napięciowe | Wartości źródeł napięciowych |
 
 ### Szablon źródła napięciowego w MNA
 
@@ -346,24 +360,26 @@ Macierz się powiększa:
 
 ![Źródło napięciowe w MNA](img/lab1_04_zrodlo_napieciowe.png)
 
-Dodajemy niewiadomą **I_V** (prąd przez źródło, płynący od + do -):
+Dodajemy niewiadomą **I_V** (prąd przez źródło) i jedno nowe równanie:
 
 ```
               kol. i   kol. j   kol. I_V      RHS (prawa strona)
-wiersz i  [                      +1     ]     [      ]
-wiersz j  [                      -1     ]     [      ]
-wiersz I_V[   +1       -1        0      ]     [  Vs  ]
+wiersz i  [                      +1     ]     [      ]    ← KCL: prąd I_V wpływa do węzła i
+wiersz j  [                      -1     ]     [      ]    ← KCL: prąd I_V wypływa z węzła j
+wiersz I_V[   +1       -1        0      ]     [  Vs  ]    ← NOWE: Vi − Vj = Vs
 ```
 
-**Co oznaczają te wpisy?**
+**Czytanie wiersz po wierszu:**
 
-| Wpis | Znaczenie |
-|------|-----------|
-| +1 w wierszu i, kolumna I_V | Prąd I_V wpływa do węzła i (KCL) |
-| -1 w wierszu j, kolumna I_V | Prąd I_V wypływa z węzła j (KCL) |
-| +1 w wierszu I_V, kolumna i | Równanie: Vi... |
-| -1 w wierszu I_V, kolumna j | ...minus Vj... |
-| Vs w RHS wiersza I_V | ...równa się Vs → Vi - Vj = Vs |
+| Wiersz | Co mówi | Typ równania |
+|--------|---------|-------------|
+| i | ...do KCL węzła i dorzuć prąd +I_V (wpływa) | Kirchhoff (KCL) |
+| j | ...do KCL węzła j dorzuć prąd −I_V (wypływa) | Kirchhoff (KCL) |
+| I_V | 1·Vi − 1·Vj + 0·I_V = Vs → **Vi − Vj = Vs** | Definicja źródła |
+
+> **Zapamiętaj wzorzec:** Źródło napięciowe dokłada **jeden wiersz** i **jedną kolumnę**
+> do macierzy. W tym wierszu zapisujemy warunek napięciowy, a kolumna reprezentuje
+> prąd przez źródło, który „uczestniczy" w KCL węzłów i oraz j.
 
 ---
 
