@@ -59,6 +59,27 @@ Cały obwód opisujemy jednym równaniem:
 | **I** | Wektor wymuszeń (prądów) | Ze źródeł prądowych |
 | **n** | Liczba węzłów | Liczymy w obwodzie (bez masy) |
 
+### Czym jest węzeł? Jak je znaleźć i ponumerować?
+
+**Węzeł** to punkt, w którym spotykają się **dwa lub więcej elementów**. Kluczowa zasada:
+
+> Wszystkie punkty połączone **samym przewodem** (bez żadnego elementu po drodze)
+> to **ten sam węzeł** — nawet jeśli na schemacie wyglądają jak kilka różnych miejsc.
+
+![Identyfikacja i numerowanie węzłów — krok po kroku](img/lab1_identyfikacja_wezlow.png)
+
+**Przepis na znalezienie węzłów:**
+
+1. **Zamaluj** kolorem każdy odcinek przewodu (bez elementów). Wszystko co jest jednym kolorem = jeden węzeł.
+2. **Policz** ile różnych kolorów (= węzłów) masz.
+3. **Wybierz jeden** jako masę (węzeł 0) — zazwyczaj dolny przewód lub ten z symbolem ⏚.
+4. **Ponumeruj resztę** od 1 wzwyż — kolejność jest dowolna, wynik będzie ten sam.
+
+**Częste pułapki:**
+- Skrzyżowanie przewodów **z kropką** = połączenie (ten sam węzeł)
+- Skrzyżowanie **bez kropki** = przewody się mijają (różne węzły)
+- Długi przewód z kilkoma odgałęzieniami to **wciąż jeden węzeł**
+
 ### Węzeł odniesienia (masa)
 
 ![Węzeł odniesienia (masa) — R1 i R2 do masy](img/lab1_wezel_odniesienia.png)
