@@ -42,7 +42,7 @@
 Masz obwód z kondensatorem lub cewką. Podajesz sygnał (np. skok napięcia) i chcesz wiedzieć,
 **jak napięcia i prądy zmieniają się w czasie**.
 
-![Obwód RC — analiza czasowa](img/lab2_01_obwod_rc.svg)
+![Obwód RC — analiza czasowa](img/lab2_01_obwod_rc.png)
 
 **Pytanie:** jak V(2) zmienia się w czasie po włączeniu źródła?
 
@@ -84,7 +84,7 @@ Każda metoda numeryczna daje inny model, ale wszystkie mają tę samą struktur
 
 | Kondensator | Model stowarzyszony |
 |:---:|:---:|
-| ![Kondensator](img/lab2_02a_kondensator.svg) | ![Model stowarzyszony](img/lab2_02b_model_stowarzyszony.svg) |
+| ![Kondensator](img/lab2_02a_kondensator.png) | ![Model stowarzyszony](img/lab2_02b_model_stowarzyszony.png) |
 
 ```
 G_eq = konduktancja zastępcza (zależy od C, h i metody)
@@ -161,7 +161,7 @@ I_eq = -(C/h) · v(t_n)
 
 Dla zbyt dużego kroku h wynik **oscyluje i rośnie** zamiast zbiegać:
 
-![Forward Euler — niestabilność](img/lab2_fe_niestabilnosc.svg)
+![Forward Euler — niestabilność](img/lab2_fe_niestabilnosc.png)
 
 **Dlatego SPICE NIE UŻYWA tej metody.**
 
@@ -307,7 +307,7 @@ Najlepszy kompromis: wysoka dokładność (rząd 2) + dobra wydajność + stabil
 Przy skokowej zmianie sygnału (np. przełączenie) metoda trapezów może generować
 fałszywe oscylacje, których nie ma w prawdziwym sygnale:
 
-![Oscylacje metody trapezów vs Backward Euler](img/lab2_trap_oscylacje.svg)
+![Oscylacje metody trapezów vs Backward Euler](img/lab2_trap_oscylacje.png)
 
 W takich przypadkach lepiej sprawdza się metoda **Geara**.
 
@@ -387,7 +387,7 @@ Przykład: Tranzystor przełączający (nanosekundy)
 
 ### Schemat decyzyjny i porównanie metod na wykresie
 
-![Porównanie metod całkowania](img/lab2_porownanie_metod.svg)
+![Porównanie metod całkowania](img/lab2_porownanie_metod.png)
 
 ```
                     Jaki obwód?
@@ -433,7 +433,7 @@ Przykład: Tranzystor przełączający (nanosekundy)
 
 ### Obwód
 
-![Obwód RC do przykładu](img/lab2_01_obwod_rc.svg)
+![Obwód RC do przykładu](img/lab2_01_obwod_rc.png)
 
 Rozwiązanie analityczne: V₂(t) = 5·(1 - e^(-t/τ)), gdzie τ = RC = 1ms
 
@@ -568,7 +568,7 @@ V₂(t_n) = 0.6 · V₂(t_(n-1)) + 2.0
 
 ### Wizualizacja
 
-![Obwód RC — metoda trapezów vs dokładne](img/lab2_rc_trapezy.svg)
+![Obwód RC — metoda trapezów vs dokładne](img/lab2_rc_trapezy.png)
 
 Metoda trapezów (rząd 2) daje **bardzo dobre** przybliżenie nawet przy grubym kroku h = 0.5ms.
 
@@ -578,7 +578,7 @@ Metoda trapezów (rząd 2) daje **bardzo dobre** przybliżenie nawet przy grubym
 
 SPICE **nie używa** stałego kroku czasowego! Automatycznie dostosowuje h do dynamiki obwodu:
 
-![Algorytm zmiennokrokowy](img/lab2_zmiennokrokowy.svg)
+![Algorytm zmiennokrokowy](img/lab2_zmiennokrokowy.png)
 
 ### Jak SPICE zmienia krok?
 
@@ -691,9 +691,9 @@ wielomianowo do punktów żądanych przez użytkownika (co TStep). Wyświetlone 
 
 Obwód RC bez źródła:
 
-![Obwód RC — warunki początkowe](img/lab2_03_rc_warunki_poczatkowe.svg)
+![Obwód RC — warunki początkowe](img/lab2_03_rc_warunki_poczatkowe.png)
 
-![Porównanie .NODESET vs .IC](img/lab2_nodeset_vs_ic.svg)
+![Porównanie .NODESET vs .IC](img/lab2_nodeset_vs_ic.png)
 
 ---
 
@@ -860,7 +860,7 @@ f_s = 1 / T_s   ← częstotliwość próbkowania [Hz] lub [Sa/s]
 
 **Intuicja:** Żeby zobaczyć sinusoidę, potrzebujesz minimum 2 próbki na okres:
 
-![Próbkowanie — dobre vs aliasing](img/lab2_probkowanie_nyquist.svg)
+![Próbkowanie — dobre vs aliasing](img/lab2_probkowanie_nyquist.png)
 
 ---
 
@@ -870,7 +870,7 @@ f_s = 1 / T_s   ← częstotliwość próbkowania [Hz] lub [Sa/s]
 
 Gdy f_max > f_s/2, widma sąsiednich okresów **nakładają się** i **nie da się ich rozdzielić**:
 
-![Aliasing w dziedzinie częstotliwości](img/lab2_aliasing.svg)
+![Aliasing w dziedzinie częstotliwości](img/lab2_aliasing.png)
 
 **Aliasing jest NIEODWRACALNY** — raz zafałszowanych danych nie da się odzyskać!
 
@@ -971,7 +971,7 @@ x(n): 5.00  3.93  1.19  0.07  0.81  3.00  5.19  3.93  1.07  0.81
       (x = 2 + 3·cos(2π·100·n/1000) = 2 + 3·cos(2πn/10))
 ```
 
-![Przykład DFT — sygnał i widmo](img/lab2_dft_przyklad.svg)
+![Przykład DFT — sygnał i widmo](img/lab2_dft_przyklad.png)
 
 ### Wynik DFT
 
@@ -1000,7 +1000,7 @@ W przykładzie wyżej f_syg = 100 Hz = 1·Δf — **dokładnie** na prążku DFT
 
 Wtedy energia sygnału **rozlewa się** na wiele prążków:
 
-![Przeciek widmowy — brak vs jest](img/lab2_przeciek_widmowy.svg)
+![Przeciek widmowy — brak vs jest](img/lab2_przeciek_widmowy.png)
 
 ### Dlaczego tak się dzieje?
 
@@ -1037,7 +1037,7 @@ Czyli w oknie próbkowania musi się zmieścić **całkowita** liczba okresów s
 
 Zamiast „twardego" okna prostokątnego, mnożymy sygnał przez **okno o łagodnych zboczach**:
 
-![Okienkowanie — funkcje okna i efekt na widmo](img/lab2_okienkowanie.svg)
+![Okienkowanie — funkcje okna i efekt na widmo](img/lab2_okienkowanie.png)
 
 ### Kompromis
 
