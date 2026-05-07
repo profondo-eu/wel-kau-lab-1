@@ -1,336 +1,904 @@
 # Laboratoria 1 — Badanie Algorytmów Analizy Stałoprądowej
 
-## Zagadnienia na wejściówkę
-
-- Tworzenie równania macierzowego (szablony/stemple elementów)
-- Zmodyfikowana metoda węzłowa (MNA)
-- Algorytm Newtona-Raphsona (N-R) dla układów nieliniowych
+> **Cel:** Nauczyć się ręcznie konstruować równanie macierzowe obwodu (tak jak robi to SPICE)
+> i zrozumieć, jak SPICE radzi sobie z elementami nieliniowymi (diody, tranzystory).
 
 ---
 
-## 1. Równanie macierzowe obwodu
+## Spis treści
 
-Program SPICE rozwiązuje obwód elektryczny sprowadzając go do układu równań liniowych w postaci macierzowej:
-
-```
-G * V = I
-```
-
-gdzie:
-- **G** — macierz konduktancji (conductance matrix), wymiar n×n
-- **V** — wektor nieznanych potencjałów węzłowych, wymiar n×1
-- **I** — wektor wymuszeń prądowych, wymiar n×1
-- **n** — liczba węzłów w obwodzie (bez węzła odniesienia/masy)
-
-### Węzeł odniesienia
-
-Jeden z węzłów obwodu jest wybierany jako **węzeł odniesienia** (masa, węzeł 0). Potencjały pozostałych węzłów mierzone są względem niego.
+1. [O co w tym chodzi? — intuicja](#1-o-co-w-tym-chodzi--intuicja)
+2. [Równanie macierzowe obwodu](#2-równanie-macierzowe-obwodu)
+3. [Szablony elementów — krok po kroku](#3-szablony-elementów--krok-po-kroku)
+4. [Zmodyfikowana metoda węzłowa (MNA)](#4-zmodyfikowana-metoda-węzłowa-mna)
+5. [Przykład 1: Prosty dzielnik napięcia](#5-przykład-1-prosty-dzielnik-napięcia--pełne-rozwiązanie)
+6. [Przykład 2: Obwód z dwoma źródłami](#6-przykład-2-obwód-z-dwoma-źródłami)
+7. [Przykład 3: Obwód ze źródłem prądowym](#7-przykład-3-obwód-ze-źródłem-prądowym)
+8. [Elementy nieliniowe — po co algorytm N-R?](#8-elementy-nieliniowe--po-co-algorytm-n-r)
+9. [Algorytm Newtona-Raphsona — krok po kroku](#9-algorytm-newtona-raphsona--krok-po-kroku)
+10. [Przykład 4: Obwód z diodą — pełne rozwiązanie N-R](#10-przykład-4-obwód-z-diodą--pełne-rozwiązanie-n-r)
+11. [Zbieżność i problemy](#11-zbieżność-i-problemy)
+12. [Potencjały startowe (.NODESET vs .IC)](#12-potencjały-startowe-nodeset-vs-ic)
+13. [Ściąga na wejściówkę](#13-ściąga-na-wejściówkę)
 
 ---
 
-## 2. Szablony (stemple) elementów — metoda węzłowa
+## 1. O co w tym chodzi? — intuicja
 
-Każdy element obwodu wnosi swój wkład do macierzy G i wektora I według określonego **szablonu** (stamp). Szablon mówi, które komórki macierzy i wektora trzeba zmodyfikować po dodaniu danego elementu.
+Wyobraź sobie, że masz obwód elektryczny z 50 elementami i 20 węzłami. Musisz wyznaczyć napięcia
+we wszystkich węzłach. Ręcznie — koszmar. Ale można to zrobić **systematycznie**:
 
-### 2.1 Rezystor (konduktancja G = 1/R)
+1. Każdy element (rezystor, źródło...) daje pewien **wkład** do wspólnego układu równań
+2. Wkłady wszystkich elementów zbieramy w jedną **macierz** i jeden **wektor**
+3. Rozwiązujemy układ równań — dostajemy wszystkie napięcia naraz
 
-Rezystor podłączony między węzłami **i** oraz **j**:
+To jest dokładnie to, co robi SPICE. A Ty musisz umieć to zrobić ręcznie dla małych obwodów.
 
-```
-Macierz G:          Wektor I:
-     i      j
-i [ +G    -G  ]     [ 0 ]
-j [ -G    +G  ]     [ 0 ]
-```
-
-**Przykład:** R = 2 kΩ między węzłami 1 i 2, G = 1/2000 = 0.5 mS
-
-```
-     1       2
-1 [ +0.5m  -0.5m ]
-2 [ -0.5m  +0.5m ]
-```
-
-Rezystor podłączony między węzłem **i** a masą (węzeł 0):
-
-```
-Macierz G:     Wektor I:
-     i
-i [ +G ]       [ 0 ]
-```
-
-### 2.2 Niezależne źródło prądowe
-
-Źródło prądowe I_s, prąd płynie z węzła **i** do węzła **j** (strzałka od i do j):
-
-```
-Macierz G:       Wektor I:
-(brak zmian)      i: [ -I_s ]
-                  j: [ +I_s ]
-```
-
-Prąd **wpływający** do węzła daje + w wektorze I, **wypływający** daje -.
-
-**Przykład:** Źródło 5 mA, prąd płynie od masy (0) do węzła 1:
-
-```
-Wektor I:
-1: [ +5m ]
-```
-
-### 2.3 Niezależne źródło napięciowe (wymaga rozszerzenia — MNA)
-
-Źródło napięciowe **nie da się** bezpośrednio opisać w klasycznej metodzie węzłowej (konduktancja nieskończona). Rozwiązanie: **zmodyfikowana metoda węzłowa** (Modified Nodal Analysis).
+**Analogia:** Wyobraź sobie arkusz Excela. Każdy element obwodu „wpisuje" swoje wartości
+do odpowiednich komórek. Na końcu Excel rozwiązuje układ równań.
 
 ---
 
-## 3. Zmodyfikowana Metoda Węzłowa (MNA)
+## 2. Równanie macierzowe obwodu
 
-### Idea
-
-Dla elementów, których nie da się opisać konduktancją (źródła napięciowe, cewki idealne, źródła sterowane napięciem), wprowadza się **dodatkowe niewiadome** — prądy płynące przez te elementy — i **dodatkowe równania**.
-
-Rozszerzone równanie macierzowe:
+Cały obwód opisujemy jednym równaniem:
 
 ```
-┌        ┐   ┌   ┐   ┌   ┐
-│  G   B │   │ V │   │ I │
-│        │ * │   │ = │   │
-│  C   D │   │ J │   │ E │
-└        ┘   └   ┘   └   ┘
+    G  ·  V  =  I
+
+    ↑      ↑      ↑
+ macierz  wektor  wektor
+  n × n   n × 1   n × 1
 ```
 
-gdzie:
-- **V** — potencjały węzłowe (n sztuk)
-- **J** — dodatkowe niewiadome, najczęściej prądy gałęziowe (m sztuk)
-- **G** — macierz konduktancji n×n
-- **B, C** — macierze łączące (n×m i m×n)
-- **D** — macierz m×m (zwykle zera lub impedancje)
-- **I** — wymuszenia prądowe
-- **E** — wymuszenia napięciowe
+| Symbol | Co to jest | Skąd się bierze |
+|--------|-----------|-----------------|
+| **G** | Macierz konduktancji | Z rezystorów i innych elementów |
+| **V** | Wektor napięć węzłowych | **To szukamy!** |
+| **I** | Wektor wymuszeń (prądów) | Ze źródeł prądowych |
+| **n** | Liczba węzłów | Liczymy w obwodzie (bez masy) |
 
-### 3.1 Szablon źródła napięciowego (MNA)
-
-Źródło napięciowe V_s między węzłami **i** (+) i **j** (-), z dodatkową niewiadomą I_v (prąd przez źródło):
+### Węzeł odniesienia (masa)
 
 ```
-        i    j    I_v          RHS
-i   [              +1  ]    [     ]
-j   [              -1  ]    [     ]
-I_v [ +1   -1      0   ]    [ V_s ]
+         ┌─── węzeł 1
+         │
+    ┌────┤
+    │    │
+    R1   R2
+    │    │
+    └────┘
+         │
+        ═══  ← węzeł 0 (masa, odniesienie)
 ```
 
-**Interpretacja:**
-- Wiersze i, j: prąd I_v wpływa do węzła i (+1) i wypływa z j (-1)
-- Wiersz I_v: równanie V_i - V_j = V_s
-
-**Przykład:** Źródło 10V, + przy węźle 1, - przy węźle 2:
-
-```
-        1    2    I_v          RHS
-1   [              +1  ]    [    ]
-2   [              -1  ]    [    ]
-I_v [ +1   -1      0   ]    [ 10 ]
-```
-
-### 3.2 Szablon źródła sterowanego napięciem (VCVS)
-
-Źródło napięciowe sterowane napięciem: V_out = μ * V_sterujące
-
-```
-        i+   i-   o+   o-   I_v         RHS
-o+  [                        +1  ]    [   ]
-o-  [                        -1  ]    [   ]
-I_v [ -μ   +μ    +1   -1     0  ]    [ 0 ]
-```
-
-### 3.3 Szablon źródła sterowanego prądem (VCCS)
-
-Źródło prądowe sterowane napięciem: I_out = g * V_sterujące
-
-```
-Macierz G:
-        i+    i-
-o+  [  +g    -g  ]
-o-  [  -g    +g  ]
-```
-
-To źródło **nie wymaga** dodatkowej zmiennej — wchodzi bezpośrednio do macierzy G.
+Jeden węzeł nazywamy **masą** (węzeł 0). Napięcia pozostałych mierzymy **względem niego**.
+Masa nie wchodzi do równania macierzowego — dlatego mamy n węzłów, nie n+1.
 
 ---
 
-## 4. Pełny przykład konstrukcji równania macierzowego
+## 3. Szablony elementów — krok po kroku
 
-### Obwód: R1(1kΩ) między węzłami 1-2, R2(2kΩ) między węzłem 2 a masą, źródło V1=5V przy węźle 1
+**Szablon** (ang. stamp) to przepis: „jeśli masz dany element, wpisz takie wartości
+w takie miejsca macierzy". Działamy jak stempel — stąd nazwa.
 
-**Krok 1:** Identyfikacja — 2 węzły (1, 2), 1 źródło napięciowe → 1 dodatkowa zmienna I_V1
+### 3.1 Rezystor — najważniejszy szablon
 
-**Krok 2:** Wymiar macierzy: 3×3 (2 węzły + 1 prąd)
-
-**Krok 3:** Nanoszenie szablonów (stemplowanie):
-
-R1 = 1kΩ, G1 = 1mS, między węzłami 1-2:
-```
-     1      2
-1 [ +1m   -1m  ]
-2 [ -1m   +1m  ]
-```
-
-R2 = 2kΩ, G2 = 0.5mS, między węzłem 2 a masą:
-```
-     2
-2 [ +0.5m ]
-```
-
-V1 = 5V, + przy węźle 1, - przy masie:
-```
-       1    I_V1       RHS
-1   [       +1   ]   [   ]
-I_V1[ +1     0   ]   [ 5 ]
-```
-
-**Krok 4:** Złożenie pełnej macierzy:
+**Zasada:** Rezystor o konduktancji G = 1/R między węzłami **i** i **j** daje:
 
 ```
-         1       2      I_V1       RHS
-1   [  +1m     -1m      +1   ]   [  0  ]
-2   [  -1m    +1.5m      0   ]   [  0  ]
-I_V1[  +1       0        0   ]   [  5  ]
+         węzeł i          węzeł j
+            │                 │
+            ├────[ R = 1/G ]──┤
+            │                 │
 ```
 
-**Krok 5:** Rozwiązanie → V1 = 5V, V2 = 5·(0.5/1.5) ≈ 1.667V, I_V1 = ...
+```
+              kolumna i   kolumna j       wektor I
+wiersz i  [    +G          -G     ]       [  0  ]
+wiersz j  [    -G          +G     ]       [  0  ]
+```
+
+**Dlaczego tak?** Bo prawo Kirchhoffa mówi: suma prądów w węźle = 0.
+- Prąd przez rezystor z i do j: I = G·(Vi - Vj) = G·Vi - G·Vj
+- W węźle i ten prąd **wypływa**: +G·Vi - G·Vj
+- W węźle j ten prąd **wpływa**: -G·Vi + G·Vj
+
+**Przypadek szczególny — rezystor do masy:**
+
+```
+         węzeł i
+            │
+            R
+            │
+           ═══ (masa)
+```
+
+```
+              kolumna i       wektor I
+wiersz i  [    +G     ]       [  0  ]
+```
+
+Tylko jedno miejsce w macierzy (masa nie ma wiersza/kolumny).
 
 ---
 
-## 5. Analiza stałoprądowa (DC) — punkt pracy
+### 3.2 Źródło prądowe
 
-Analiza DC w SPICE polega na:
-1. Usunięciu elementów reaktancyjnych (C → rozwarcie, L → zwarcie)
-2. Konstrukcji równania macierzowego G·V = I
-3. Rozwiązaniu układu równań (dekompozycja LU)
+**Zasada:** Źródło prądowe Is, strzałka od węzła **a** do węzła **b**:
 
-Dla obwodów **liniowych** — jedno rozwiązanie daje wynik.
+```
+         węzeł a          węzeł b
+            │                 │
+            ├────[ Is → ]─────┤
+            │    (a → b)      │
+```
+
+```
+              (nic w macierzy G)     wektor I
+wiersz a                              [ -Is ]  ← prąd WYPŁYWA z a
+wiersz b                              [ +Is ]  ← prąd WPŁYWA do b
+```
+
+Źródło prądowe **nie zmienia macierzy G** — wpływa tylko na wektor I.
+
+**Zapamiętaj:** strzałka źródła wskazuje kierunek prądu. Węzeł, z którego prąd wypływa, dostaje **minus**.
 
 ---
 
-## 6. Analiza układu nieliniowego — algorytm Newtona-Raphsona
-
-### Problem
-
-Elementy nieliniowe (diody, tranzystory) mają charakterystyki opisane funkcjami nieliniowymi, np.:
-
-**Dioda:** I_D = I_S · (e^(V_D / V_T) - 1)
-
-gdzie I_S ≈ 10⁻¹⁴ A, V_T ≈ 26 mV (w temp. pokojowej)
-
-Równanie macierzowe staje się **nieliniowe** — nie można go rozwiązać jednym krokiem.
-
-### Linearyzacja — model zastępczy
-
-W każdym kroku iteracji element nieliniowy zastępowany jest **liniowym modelem zastępczym** (linearyzacja w punkcie pracy):
-
-Dla diody w punkcie pracy (V_D0, I_D0):
+### 3.3 Źródło napięciowe — problem!
 
 ```
-I_D ≈ I_D0 + g_d · (V_D - V_D0)
+         węzeł i          węzeł j
+            │                 │
+            ├──(+  Vs  -)────┤
+            │                 │
 ```
 
-gdzie **g_d** to konduktancja dynamiczna (pochodna charakterystyki):
+**Problem:** Konduktancja źródła napięciowego = ∞ (opór = 0). Nie da się wpisać ∞ do macierzy!
+
+**Rozwiązanie:** Zmodyfikowana metoda węzłowa (MNA) — patrz następny rozdział.
+
+---
+
+## 4. Zmodyfikowana metoda węzłowa (MNA)
+
+### Idea — w prostych słowach
+
+Gdy mamy źródło napięciowe, robimy dwie rzeczy:
+1. **Dodajemy nową niewiadomą** — prąd płynący przez to źródło (I_V)
+2. **Dodajemy nowe równanie** — „napięcie między węzłami = Vs"
+
+Macierz się powiększa:
 
 ```
-g_d = dI_D / dV_D |_(V_D = V_D0) = I_S / V_T · e^(V_D0 / V_T)
+    ┌─────────┬───────┐   ┌─────┐   ┌─────┐
+    │         │       │   │     │   │     │
+    │    G    │   B   │   │  V  │   │  I  │
+    │  n × n  │ n × m │ · │     │ = │     │
+    ├─────────┼───────┤   ├─────┤   ├─────┤
+    │    C    │   D   │   │  J  │   │  E  │
+    │  m × n  │ m × m │   │     │   │     │
+    └─────────┴───────┘   └─────┘   └─────┘
+
+    n = liczba węzłów
+    m = liczba dodatkowych zmiennych (np. prądów przez źródła napięciowe)
 ```
 
-Model zastępczy diody = **równoległe połączenie konduktancji g_d i źródła prądowego I_eq**:
+| Blok | Co zawiera |
+|------|-----------|
+| **G** | Konduktancje (jak wcześniej) |
+| **B, C** | Powiązania między węzłami a nowymi zmiennymi |
+| **D** | Zwykle zera |
+| **V** | Szukane napięcia węzłowe |
+| **J** | Szukane prądy (nowe niewiadome) |
+| **I** | Wymuszenia prądowe |
+| **E** | Wymuszenia napięciowe |
+
+### Szablon źródła napięciowego w MNA
+
+Źródło Vs, biegun (+) w węźle **i**, biegun (-) w węźle **j**:
 
 ```
-I_eq = I_D0 - g_d · V_D0
+         węzeł i          węzeł j
+            │                 │
+            ├──(+  Vs  -)────┤
+            │                 │
 ```
 
-### Szablon diody (model zastępczy) w MNA
-
-Dioda między węzłami i (anoda) i j (katoda):
+Dodajemy niewiadomą **I_V** (prąd przez źródło, płynący od + do -):
 
 ```
-Macierz G:           Wektor I:
-     i      j
-i [ +g_d  -g_d ]    [ +I_eq ]
-j [ -g_d  +g_d ]    [ -I_eq ]
+              kol. i   kol. j   kol. I_V      RHS (prawa strona)
+wiersz i  [                      +1     ]     [      ]
+wiersz j  [                      -1     ]     [      ]
+wiersz I_V[   +1       -1        0      ]     [  Vs  ]
 ```
 
-### Algorytm Newtona-Raphsona (N-R)
+**Co oznaczają te wpisy?**
+
+| Wpis | Znaczenie |
+|------|-----------|
+| +1 w wierszu i, kolumna I_V | Prąd I_V wpływa do węzła i (KCL) |
+| -1 w wierszu j, kolumna I_V | Prąd I_V wypływa z węzła j (KCL) |
+| +1 w wierszu I_V, kolumna i | Równanie: Vi... |
+| -1 w wierszu I_V, kolumna j | ...minus Vj... |
+| Vs w RHS wiersza I_V | ...równa się Vs → Vi - Vj = Vs |
+
+---
+
+## 5. Przykład 1: Prosty dzielnik napięcia — pełne rozwiązanie
+
+### Obwód
 
 ```
-1. Wybierz punkt startowy V⁰ (np. 0V na wszystkich węzłach)
-2. Powtarzaj (k = 0, 1, 2, ...):
-   a) Oblicz modele zastępcze elementów nieliniowych w punkcie V^k
-      (wyznacz g_d i I_eq dla każdego elementu)
-   b) Zbuduj równanie macierzowe: G(V^k) · V = I(V^k)
-   c) Rozwiąż układ równań → otrzymaj V^(k+1)
-   d) Sprawdź zbieżność:
-      |V^(k+1) - V^k| < ε  (tolerancja)
-      Jeśli tak → KONIEC (znaleziono punkt pracy)
-      Jeśli nie → wróć do kroku (a) z V^(k+1)
+         V1 = 10V
+        (+)   (-)
+         │     │
+    ┌────┘     └────┐
+    │    węzeł 1    │
+    │               │
+    │     ┌───┐     │
+    └─────┤R1 ├─────┘
+          │1kΩ│
+          └─┬─┘
+            │
+         węzeł 2
+            │
+          ┌───┐
+          │R2 │
+          │2kΩ│
+          └─┬─┘
+            │
+           ═══ (masa = węzeł 0)
 ```
 
-### Zbieżność
+### Krok 1: Inwentaryzacja
 
-- N-R zbiega **kwadratowo** (bardzo szybko) gdy punkt startowy jest blisko rozwiązania
-- Może **nie zbiegać** gdy punkt startowy jest daleko od rozwiązania
-- SPICE stosuje dodatkowe techniki wspomagające zbieżność:
-  - **Source stepping** — stopniowe zwiększanie wartości źródeł od 0 do wartości docelowej
-  - **GMIN stepping** — dodanie małych konduktancji do masy
-  - **.NODESET** — podpowiedzi dla punktu startowego
+| Element | Typ | Węzły | Wartość |
+|---------|-----|-------|---------|
+| V1 | Źródło napięciowe | 1(+) — 0(-) | 10 V |
+| R1 | Rezystor | 1 — 2 | 1 kΩ → G1 = 1 mS |
+| R2 | Rezystor | 2 — 0 | 2 kΩ → G2 = 0.5 mS |
+
+- Węzły: **2** (węzeł 1, węzeł 2) — masa nie liczymy
+- Źródła napięciowe: **1** → dodatkowa zmienna: I_V1
+- **Wymiar macierzy: 3 × 3**
+
+### Krok 2: Pusta macierz
+
+```
+              V1       V2      I_V1       RHS
+wiersz 1  [   0        0        0    ]   [  0  ]
+wiersz 2  [   0        0        0    ]   [  0  ]
+wiersz IV1[   0        0        0    ]   [  0  ]
+```
+
+### Krok 3: Stemplujemy R1 (1 mS, węzły 1-2)
+
+```
+              V1       V2      I_V1       RHS
+wiersz 1  [ +1m      -1m        0    ]   [  0  ]
+wiersz 2  [ -1m      +1m        0    ]   [  0  ]
+wiersz IV1[   0        0        0    ]   [  0  ]
+```
+
+### Krok 4: Stemplujemy R2 (0.5 mS, węzeł 2 — masa)
+
+R2 do masy → dodajemy G2 tylko na przekątnej w wierszu/kolumnie 2:
+
+```
+              V1       V2      I_V1       RHS
+wiersz 1  [ +1m      -1m        0    ]   [  0  ]
+wiersz 2  [ -1m    +1.5m        0    ]   [  0  ]     ← 1m + 0.5m = 1.5m
+wiersz IV1[   0        0        0    ]   [  0  ]
+```
+
+### Krok 5: Stemplujemy V1 (10V, + na węźle 1, - na masie)
+
+```
+              V1       V2      I_V1       RHS
+wiersz 1  [ +1m      -1m       +1    ]   [  0  ]
+wiersz 2  [ -1m    +1.5m        0    ]   [  0  ]
+wiersz IV1[ +1        0         0    ]   [ 10  ]
+```
+
+(Biegun - na masie → nie ma wpisu w wierszu masy, bo masa nie jest w równaniu.)
+
+### Krok 6: Rozwiązanie
+
+Z wiersza I_V1: **V1 = 10 V** (oczywiste — to wymusza źródło)
+
+Z wiersza 2: -1m · 10 + 1.5m · V2 = 0
+
+```
+V2 = (1m · 10) / 1.5m = 10/1.5 ≈ 6.667 V
+```
+
+Z wiersza 1: 1m · 10 - 1m · 6.667 + I_V1 = 0
+
+```
+I_V1 = -(10 - 6.667) · 1m = -3.333 mA
+```
+
+(Minus oznacza, że prąd płynie w kierunku przeciwnym do przyjętego — źródło **oddaje** prąd.)
+
+### Weryfikacja
+
+Dzielnik napięcia: V2 = V1 · R2/(R1+R2) = 10 · 2000/3000 = 6.667 V ✓
+
+Prąd: I = V1/(R1+R2) = 10/3000 = 3.333 mA ✓
+
+---
+
+## 6. Przykład 2: Obwód z dwoma źródłami
+
+### Obwód
+
+```
+      V1 = 5V               V2 = 3V
+     (+)  (-)               (+)  (-)
+      │    │                 │    │
+      │    └───── węzeł 1 ───┘    │
+      │              │            │
+     ═══           ┌───┐         ═══
+    (masa)         │ R │        (masa)
+                   │1kΩ│
+                   └─┬─┘
+                     │
+                  węzeł 2
+                     │
+                   ┌───┐
+                   │ R │
+                   │2kΩ│
+                   └─┬─┘
+                     │
+                    ═══ (masa)
+```
+
+### Inwentaryzacja
+
+- 2 węzły, 2 źródła napięciowe → 2 dodatkowe zmienne (I_V1, I_V2)
+- Wymiar: **4 × 4**
+
+### Stemplowanie
+
+V1 = 5V: (+) na węźle 1, (-) na masie
+V2 = 3V: (+) na węźle 1, (-) na masie
+R = 1kΩ: węzły 1-2, G = 1 mS
+R = 2kΩ: węzeł 2 - masa, G = 0.5 mS
+
+```
+              V1       V2     I_V1    I_V2       RHS
+wiersz 1  [ +1m      -1m      +1      +1   ]   [  0  ]
+wiersz 2  [ -1m    +1.5m       0       0   ]   [  0  ]
+wiersz IV1[ +1        0        0       0   ]   [  5  ]
+wiersz IV2[ +1        0        0       0   ]   [  3  ]
+```
+
+**Uwaga:** Wiersz IV1 mówi V1 = 5V, wiersz IV2 mówi V1 = 3V. To jest **sprzeczność** (5 ≠ 3)!
+
+Macierz jest **osobliwa** — układ nie ma rozwiązania. Fizycznie: nie można podłączyć
+dwóch źródeł napięciowych o różnych wartościach równolegle.
+
+**Wniosek pedagogiczny:** Metoda macierzowa automatycznie wykrywa obwody fizycznie niemożliwe!
+
+---
+
+## 7. Przykład 3: Obwód ze źródłem prądowym
+
+### Obwód
+
+```
+         węzeł 1             węzeł 2
+            │                   │
+            ├──────[ R1=1kΩ ]───┤
+            │                   │
+         ┌──┴──┐             ┌──┴──┐
+         │     │             │     │
+        Is=2mA R2=2kΩ       R3=3kΩ
+         │ ↑   │             │     │
+         │ │   │             │     │
+         └──┬──┘             └──┬──┘
+            │                   │
+            └───────────────────┘
+                     │
+                    ═══ (masa)
+```
+
+Is = 2mA wpływa do węzła 1 (strzałka w górę = prąd do węzła 1).
+
+### Inwentaryzacja
+
+- 2 węzły (1, 2), brak źródeł napięciowych → wymiar **2 × 2**
+- R1 = 1kΩ → G1 = 1 mS, między 1-2
+- R2 = 2kΩ → G2 = 0.5 mS, węzeł 1 - masa
+- R3 = 3kΩ → G3 = 0.333 mS, węzeł 2 - masa
+- Is = 2 mA wpływa do węzła 1
+
+### Stemplowanie krok po kroku
+
+**Pusta macierz:**
+```
+              V1       V2        RHS
+wiersz 1  [   0        0   ]   [  0   ]
+wiersz 2  [   0        0   ]   [  0   ]
+```
+
+**+ R1 (1mS, węzły 1-2):**
+```
+              V1       V2        RHS
+wiersz 1  [ +1m      -1m   ]   [  0   ]
+wiersz 2  [ -1m      +1m   ]   [  0   ]
+```
+
+**+ R2 (0.5mS, węzeł 1 - masa):**
+```
+              V1       V2        RHS
+wiersz 1  [ +1.5m    -1m   ]   [  0   ]
+wiersz 2  [ -1m      +1m   ]   [  0   ]
+```
+
+**+ R3 (0.333mS, węzeł 2 - masa):**
+```
+              V1       V2        RHS
+wiersz 1  [ +1.5m    -1m    ]   [  0   ]
+wiersz 2  [ -1m    +1.333m  ]   [  0   ]
+```
+
+**+ Is (2mA, wpływa do węzła 1):**
+```
+              V1       V2        RHS
+wiersz 1  [ +1.5m    -1m    ]   [ +2m  ]
+wiersz 2  [ -1m    +1.333m  ]   [  0   ]
+```
+
+### Rozwiązanie (metoda Cramera lub eliminacja)
+
+```
+Z wiersza 2:   V2 = (1m / 1.333m) · V1 = 0.75 · V1
+
+Podstawiamy do wiersza 1:
+1.5m · V1 - 1m · 0.75 · V1 = 2m
+1.5m · V1 - 0.75m · V1 = 2m
+0.75m · V1 = 2m
+V1 = 2m / 0.75m = 2.667 V
+
+V2 = 0.75 · 2.667 = 2.000 V
+```
+
+### Weryfikacja (KCL w węźle 1)
+
+```
+Is - IR2 - IR1 = 0
+2mA - V1/R2 - (V1-V2)/R1 = 0
+2mA - 2.667/2000 - (2.667-2.000)/1000 = 0
+2mA - 1.333mA - 0.667mA = 0 ✓
+```
+
+---
+
+## 8. Elementy nieliniowe — po co algorytm N-R?
+
+### Problem — wyjaśnienie na przykładzie
+
+Dotąd wszystkie elementy miały **liniowe** zależności I-V (prąd proporcjonalny do napięcia).
+Ale dioda ma charakterystykę **wykładniczą**:
+
+```
+                    I [mA]
+                    │
+                 40 ┤              ╱
+                    │             ╱
+                 30 ┤            ╱
+                    │           ╱
+                 20 ┤          ╱
+                    │        ╱
+                 10 ┤      ╱
+                    │   ╱╱
+                  0 ┤╱╱╱─────────────
+                    └──┬──┬──┬──┬──── V [V]
+                      0.2 0.4 0.6 0.8
+
+         I_D = Is · (e^(V_D / V_T) - 1)
+
+         Is ≈ 10⁻¹⁴ A  (prąd nasycenia)
+         V_T ≈ 26 mV    (napięcie termiczne w temp. pokojowej)
+```
+
+**Nie da się** wpisać takiej zależności do macierzy G (macierz wymaga liniowych zależności).
+
+### Rozwiązanie — linearyzacja!
+
+W każdym punkcie krzywej można ją **przybliżyć prostą** (styczną):
+
+```
+                    I [mA]
+                    │
+                 40 ┤              ╱
+                    │         ╱╱╱  ← styczna (liniowe przybliżenie)
+                 30 ┤      ╱╱╱╱
+                    │     ╱ ● punkt pracy (V₀, I₀)
+                 20 ┤   ╱╱
+                    │  ╱╱       nachylenie stycznej = g_d
+                 10 ┤╱╱         (konduktancja dynamiczna)
+                    │
+                  0 ┤
+                    └──────────────── V [V]
+```
+
+Styczna w punkcie (V₀, I₀):
+
+```
+I_D ≈ I₀ + g_d · (V_D - V₀)
+```
+
+gdzie g_d = dI/dV w punkcie V₀ (nachylenie krzywej):
+
+```
+g_d = (Is / V_T) · e^(V₀ / V_T)
+```
+
+To przybliżenie liniowe możemy **wpisać do macierzy** — to jest model zastępczy diody.
+
+---
+
+## 9. Algorytm Newtona-Raphsona — krok po kroku
+
+### Analogia
+
+Wyobraź sobie, że szukasz miejsca, gdzie krzywa przecina oś X (pierwiastek równania).
+Stoisz w jakimś punkcie, rysujesz styczną i sprawdzasz, gdzie styczna przecina oś.
+Idziesz do tego miejsca i powtarzasz. Z każdym krokiem jesteś coraz bliżej rozwiązania.
+
+```
+        f(x)
+         │    ╲
+         │     ╲
+         │      ╲  ← styczna z punktu x₀
+         │       ● x₀ (start — zgadujemy)
+         │      ╱╲
+         │    ╱    ╲
+    ─────┼──╱───────╲──── x
+         │╱    x₁    ╲
+         ● ← tu styczna           x₁ jest bliżej rozwiązania!
+           trafia w oś X
+```
+
+### Algorytm w SPICE — dla obwodu z elementami nieliniowymi
+
+```
+┌─────────────────────────────────────────────────────────┐
+│  KROK 0: Zgadnij punkt startowy                        │
+│          (np. V = 0 na wszystkich węzłach)              │
+└─────────────────────────┬───────────────────────────────┘
+                          │
+                          ▼
+┌─────────────────────────────────────────────────────────┐
+│  KROK A: Oblicz modele zastępcze elementów nieliniowych │
+│          w aktualnym punkcie pracy:                     │
+│          • g_d = nachylenie krzywej I-V w tym punkcie   │
+│          • I_eq = prąd źródła zastępczego               │
+└─────────────────────────┬───────────────────────────────┘
+                          │
+                          ▼
+┌─────────────────────────────────────────────────────────┐
+│  KROK B: Zbuduj równanie macierzowe G·V = I             │
+│          (teraz już liniowe — dzięki linearyzacji!)     │
+└─────────────────────────┬───────────────────────────────┘
+                          │
+                          ▼
+┌─────────────────────────────────────────────────────────┐
+│  KROK C: Rozwiąż układ równań → nowe V                  │
+└─────────────────────────┬───────────────────────────────┘
+                          │
+                          ▼
+┌─────────────────────────────────────────────────────────┐
+│  KROK D: Czy nowe V jest blisko poprzedniego?           │
+│          |V_nowe - V_stare| < tolerancja?               │
+│                                                         │
+│          TAK → KONIEC (znaleziono rozwiązanie!)         │
+│          NIE → wróć do KROKU A z nowym V                │
+└─────────────────────────────────────────────────────────┘
+```
+
+### Model zastępczy diody — schemat
+
+Dioda między węzłami **a** (anoda) i **k** (katoda) w punkcie pracy (V₀, I₀):
+
+```
+        Prawdziwa dioda:              Model zastępczy (w jednej iteracji):
+
+          węzeł a                       węzeł a
+             │                             │
+             ▼                          ┌──┴──┐
+            ╱│                          │     │
+           ╱ │  (dioda)                g_d   I_eq
+          ╱  │                         │     │ ↑
+             │                          │     │
+             │                          └──┬──┘
+          węzeł k                       węzeł k
+```
+
+```
+g_d  = (Is / V_T) · e^(V₀ / V_T)     ← konduktancja dynamiczna
+I_eq = I₀ - g_d · V₀                  ← prąd źródła zastępczego
+
+gdzie: I₀ = Is · (e^(V₀ / V_T) - 1)  ← prąd w aktualnym punkcie pracy
+```
+
+**Szablon w macierzy** (identyczny jak rezystor + źródło prądowe):
+
+```
+              kol. a    kol. k       RHS
+wiersz a  [   +g_d     -g_d   ]    [ +I_eq ]
+wiersz k  [   -g_d     +g_d   ]    [ -I_eq ]
+```
+
+---
+
+## 10. Przykład 4: Obwód z diodą — pełne rozwiązanie N-R
+
+### Obwód
+
+```
+         V1 = 5V
+        (+)   (-)
+         │     │
+    ┌────┘    ═══ (masa = węzeł 0)
+    │
+  węzeł 1
+    │
+  ┌───┐
+  │ R │
+  │1kΩ│
+  └─┬─┘
+    │
+  węzeł 2
+    │
+    ▼
+   ╱│
+  ╱ │  Dioda (Is = 10⁻¹⁴ A, V_T = 26 mV)
+ ╱  │
+    │
+   ═══ (masa)
+```
+
+**Szukamy:** V1, V2, I_V1
+
+### Iteracja 0: Punkt startowy
+
+Zgadujemy: V₁⁰ = 0 V, V₂⁰ = 0 V
+
+**Model diody w punkcie V_D = V₂ - 0 = 0 V:**
+
+```
+I₀  = 10⁻¹⁴ · (e^(0/0.026) - 1) = 10⁻¹⁴ · (1 - 1) = 0 A
+g_d = 10⁻¹⁴ / 0.026 · e^(0/0.026) = 3.846 · 10⁻¹³ S  ← prawie zero!
+I_eq = 0 - 3.846·10⁻¹³ · 0 = 0
+```
+
+**Równanie macierzowe (iteracja 0):**
+
+```
+              V1        V2        I_V1        RHS
+wiersz 1  [ +1m       -1m        +1     ]   [  0     ]
+wiersz 2  [ -1m    +1m+g_d        0     ]   [ +I_eq  ]
+wiersz IV1[ +1         0          0     ]   [  5     ]
+```
+
+Ponieważ g_d ≈ 0 i I_eq ≈ 0:
+
+```
+V1 = 5 V,  V2 ≈ 5 V  (prawie cały prąd „chce" płynąć, ale dioda zamknięta)
+```
+
+To jest złe rozwiązanie — dioda ma na sobie 5V, co dałoby absurdalny prąd.
+Ale to dopiero **pierwsza iteracja** — algorytm się poprawi.
+
+### Iteracja 1: Nowy punkt pracy V_D = 5 V
+
+```
+I₁  = 10⁻¹⁴ · (e^(5/0.026) - 1) ≈ ∞  (astronomicznie duży prąd!)
+g_d = 10⁻¹⁴/0.026 · e^(5/0.026) ≈ ∞
+```
+
+W praktyce SPICE stosuje **ograniczenia** — nie pozwala na tak duże skoki napięcia.
+Typowo ogranicza zmianę V_D do kilku V_T na iterację.
+
+### Jak to wygląda w praktyce (ze zbieżnością)
+
+| Iteracja | V_D (napięcie na diodzie) | I_D (prąd) | g_d |
+|----------|--------------------------|------------|-----|
+| 0 | 0 V | ~0 | ~0 |
+| 1 | ~0.5 V (ograniczone) | ~0.2 mA | ~8 mS |
+| 2 | ~0.65 V | ~3 mA | ~115 mS |
+| 3 | ~0.693 V | ~4.3 mA | ~165 mS |
+| 4 | ~0.6932 V | ~4.307 mA | ~165.6 mS |
+| **5** | **~0.6932 V** | **~4.307 mA** | **zbieżność!** |
+
+**Rozwiązanie końcowe:**
+```
+V1 = 5 V
+V2 ≈ 0.693 V  (napięcie na diodzie)
+I = (V1 - V2) / R = (5 - 0.693) / 1000 ≈ 4.307 mA
+
+Weryfikacja: I_D = Is · (e^(0.693/0.026) - 1) ≈ 4.307 mA ✓
+```
+
+---
+
+## 11. Zbieżność i problemy
+
+### Zbieżność kwadratowa — co to znaczy?
+
+```
+Iteracja:  1        2        3        4        5
+Błąd:      1        0.1      0.001    0.000001  0.000000000001
+                     ↑        ↑         ↑
+              błąd^2 = ~0.01  ~0.000001  ~10⁻¹²
+```
+
+W każdej iteracji **błąd podnosi się do kwadratu** — zbieżność jest bardzo szybka
+(zwykle 3-7 iteracji wystarczy). Ale to działa **tylko** gdy jesteśmy blisko rozwiązania!
 
 ### Kryteria zbieżności w SPICE
 
-Dwa rodzaje kryteriów sprawdzanych jednocześnie:
-1. **Kryterium napięciowe:** |V^(k+1)_n - V^k_n| < VNTOL (domyślnie 1 μV)
-2. **Kryterium prądowe:** |I^(k+1)_n - I^k_n| < ABSTOL + RELTOL · max(|I^k|) (domyślnie ABSTOL = 1 pA, RELTOL = 0.001)
+SPICE sprawdza **oba** jednocześnie:
 
-Oba kryteria muszą być spełnione **jednocześnie** dla wszystkich węzłów/gałęzi.
+| Kryterium | Warunek | Wartość domyślna |
+|-----------|---------|-----------------|
+| Napięciowe | \|V_nowe - V_stare\| < VNTOL | 1 μV |
+| Prądowe | \|I_nowy - I_stary\| < ABSTOL + RELTOL·\|I\| | ABSTOL=1pA, RELTOL=0.001 |
 
-### Parametr ITL1
+### Co gdy nie zbiega? — parametr ITL1
 
-**ITL1** = maksymalna liczba iteracji N-R w analizie DC (domyślnie 100). Jeśli po ITL1 iteracjach nie osiągnięto zbieżności → błąd "no convergence".
+**ITL1 = 100** (domyślnie) — maks. liczba iteracji. Po 100 iteracjach bez zbieżności → błąd.
 
----
+### Techniki wspomagania zbieżności
 
-## 7. Potencjały startowe
-
-Dla obwodów nieliniowych z wieloma rozwiązaniami (np. przerzutniki) ważny jest wybór punktu startowego:
-
-### .NODESET V(n) = wartość
-
-Podpowiedź dla algorytmu — program dodaje tymczasowe źródło napięciowe, znajduje punkt pracy, usuwa źródło i kontynuuje. Wynik końcowy **nie musi** być równy podanej wartości.
-
-### .IC V(n) = wartość
-
-Wymusza warunek początkowy — potencjał węzła **będzie** równy podanej wartości na początku analizy.
-
----
-
-## 8. Analiza DC sweep
-
-Źródło wymuszające zmienia wartość w zadanym zakresie, w każdym punkcie wykonywana jest pełna analiza DC:
+Gdy standardowy algorytm nie zbiega, SPICE próbuje:
 
 ```
-.DC V1 0V 10V 0.1V
+Próba 1: Normalny N-R
+         │
+         └──NIE──→ Próba 2: Source stepping
+                             (źródła od 0% do 100% małymi krokami)
+                             │
+                             └──NIE──→ Próba 3: GMIN stepping
+                                                 (małe konduktancje do masy)
+                                                 │
+                                                 └──NIE──→ BŁĄD!
+                                                          "No convergence"
 ```
 
-Oznacza: V1 zmienia się od 0 do 10V krokiem 0.1V. Punkt pracy z poprzedniego kroku służy jako punkt startowy dla następnego.
+| Metoda | Co robi | Kiedy pomaga |
+|--------|---------|-------------|
+| **Source stepping** | Zwiększa źródła od 0 do wartości docelowej | Obwody z wieloma elementami nieliniowymi |
+| **GMIN stepping** | Dodaje małe konduktancje do masy | Obwody z izolowanymi węzłami |
+| **.NODESET** | Podpowiada punkt startowy | Przerzutniki, obwody z wieloma stanami |
 
 ---
 
-## 9. Typowe pytania na wejściówkę
+## 12. Potencjały startowe (.NODESET vs .IC)
 
-1. **Zapisz szablon rezystora/źródła napięciowego/źródła prądowego w MNA**
-2. **Dla danego obwodu (2-3 węzły) skonstruuj pełne równanie macierzowe**
-3. **Wyjaśnij, dlaczego źródło napięciowe wymaga dodatkowej zmiennej w MNA**
-4. **Opisz algorytm N-R — jakie są kroki jednej iteracji?**
-5. **Czym jest model zastępczy elementu nieliniowego? Narysuj dla diody**
-6. **Co oznacza zbieżność kwadratowa algorytmu N-R?**
-7. **Wymień metody wspomagania zbieżności w SPICE**
-8. **Jaka jest różnica między .NODESET a .IC?**
-9. **Co się stanie, gdy algorytm N-R nie osiągnie zbieżności? (ITL1)**
-10. **Dla obwodu z diodą — jak wygląda jedno przejście pętli N-R?**
+### .NODESET — „podpowiedź"
+
+```
+.NODESET V(1) = 5V
+```
+
+SPICE dodaje **tymczasowe** źródło 5V, znajduje punkt pracy, **usuwa źródło** i szuka
+prawdziwego punktu pracy. Wynik końcowy **nie musi** być 5V.
+
+### .IC — „wymuszenie"
+
+```
+.IC V(1) = 5V
+```
+
+Napięcie **będzie** 5V na początku analizy (warunek początkowy dla analizy TRAN).
+
+### Porównanie na przykładzie
+
+```
+         węzeł 1
+            │
+          ┌─┤
+          │ │
+         R1 C1
+        1kΩ 1nF
+          │ │
+          └─┤
+            │
+           ═══ (masa)
+```
+
+Obwód RC **bez źródła**:
+
+| Deklaracja | Co się dzieje | V(1) na początku TRAN |
+|-----------|--------------|----------------------|
+| `.NODESET V(1)=5V` | Tymczasowe źródło 5V → punkt pracy → źródło usunięte → brak źródła → V=0 | **0 V** (płaski przebieg) |
+| `.IC V(1)=5V` | Kondensator naładowany do 5V na początku | **5 V** (rozładowanie eksponencjalne) |
+
+```
+V(1)
+ 5V ┤●                              .IC V(1)=5V
+    │ ╲
+ 4V ┤  ╲
+    │   ╲
+ 3V ┤    ╲
+    │     ╲
+ 2V ┤      ╲
+    │        ╲
+ 1V ┤          ╲─────────
+    │                          .NODESET V(1)=5V
+ 0V ┤─────────────────────── ← (linia prosta na 0V)
+    └──┬──┬──┬──┬──┬──┬──── t
+      0  1μ 2μ 3μ 4μ 5μ
+```
+
+---
+
+## 13. Ściąga na wejściówkę
+
+### Szablony elementów — szybki podgląd
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    SZABLONY ELEMENTÓW                            │
+├─────────────────┬───────────────────────────────────────────────┤
+│                 │         Macierz G            │   Wektor I     │
+│  REZYSTOR       │    i      j                  │                │
+│  (G=1/R)        │ i [+G   -G]                  │   [0]          │
+│  węzły i-j      │ j [-G   +G]                  │   [0]          │
+├─────────────────┼──────────────────────────────┼────────────────┤
+│  REZYSTOR       │    i                         │                │
+│  do masy        │ i [+G]                       │   [0]          │
+├─────────────────┼──────────────────────────────┼────────────────┤
+│  ŹRÓDŁO         │                              │                │
+│  PRĄDOWE Is     │  (nic)                       │ a: [-Is]       │
+│  a → b          │                              │ b: [+Is]       │
+├─────────────────┼──────────────────────────────┼────────────────┤
+│  ŹRÓDŁO         │    i    j   I_V              │   RHS          │
+│  NAPIĘCIOWE Vs  │ i [          +1]             │   [  ]         │
+│  (+)i  (-)j     │ j [          -1]             │   [  ]         │
+│  (MNA!)         │ IV[+1  -1    0 ]             │   [Vs]         │
+├─────────────────┼──────────────────────────────┼────────────────┤
+│  DIODA (N-R)    │    a      k                  │                │
+│  model zastępczy│ a [+g_d  -g_d]               │ a: [+I_eq]     │
+│  w punkcie V₀   │ k [-g_d  +g_d]               │ k: [-I_eq]     │
+│                 │ g_d = Is/V_T · e^(V₀/V_T)   │                │
+│                 │ I_eq = I₀ - g_d · V₀         │                │
+└─────────────────┴──────────────────────────────┴────────────────┘
+```
+
+### Algorytm N-R — w trzech zdaniach
+
+1. Zastąp element nieliniowy modelem liniowym (styczna do krzywej w punkcie pracy)
+2. Rozwiąż układ liniowych równań → dostaniesz nowy punkt pracy
+3. Powtarzaj aż się ustabilizuje (|V_nowe - V_stare| < tolerancja)
+
+### Kluczowe liczby do zapamiętania
+
+| Parametr | Wartość domyślna | Co to jest |
+|----------|-----------------|-----------|
+| ITL1 | 100 | Maks. iteracji N-R w analizie DC |
+| VNTOL | 1 μV | Tolerancja napięciowa zbieżności |
+| ABSTOL | 1 pA | Tolerancja prądowa (bezwzgl.) |
+| RELTOL | 0.001 | Tolerancja prądowa (względna) |
+
+### 10 pytań i odpowiedzi
+
+| # | Pytanie | Odpowiedź |
+|---|---------|-----------|
+| 1 | Zapisz szablon rezystora | +G/-G na przekątnej/poza nią |
+| 2 | Dlaczego źródło V wymaga MNA? | Bo ma G = ∞, nie wejdzie do macierzy |
+| 3 | Co dodaje MNA dla źródła V? | Nową zmienną (prąd) i nowe równanie (Vi-Vj=Vs) |
+| 4 | Co robi N-R w jednej iteracji? | Linearyzuje → rozwiązuje → sprawdza zbieżność |
+| 5 | Czym jest g_d? | Nachylenie krzywej I-V w punkcie pracy |
+| 6 | Zbieżność kwadratowa = ? | Błąd maleje jak kwadrat (10⁻² → 10⁻⁴ → 10⁻⁸) |
+| 7 | Co gdy N-R nie zbiega? | Source stepping → GMIN stepping → błąd |
+| 8 | .NODESET vs .IC? | Podpowiedź vs wymuszenie |
+| 9 | Co to ITL1? | Maks. iteracji DC (domyślnie 100) |
+| 10 | Skonstruuj macierz dla dzielnika R | Patrz Przykład 1 wyżej |
